@@ -3,6 +3,14 @@
 
 from __future__ import annotations
 
+"""
+Script di orchestrazione per la generazione di una griglia di benchmark 
+dello spazio delle soluzioni (D_s x D_w).
+Itera su tutte le combinazioni di campionatori di posizione e di ampiezza, 
+invocando automaticamente lo script sottostante di generazione delle formule SMT 
+e gestendo parametri, semi deterministici, percorsi di output, verifiche e grafici.
+"""
+
 import argparse
 import subprocess
 import sys

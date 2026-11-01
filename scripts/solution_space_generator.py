@@ -10,6 +10,14 @@ and stops when the union measure reaches the target percentage exactly.
 
 from __future__ import annotations
 
+"""
+Script di orchestrazione ed esecuzione batch per benchmark di stringhe basati su SMT-LIB. 
+Scansiona una cartella di file .smt2 e applica il campionatore guidato da intervalli 
+(intervalGuidedSampler) iterando su differenti percentuali di copertura target (10%, 30%, 50%, 70%, 90%). 
+Verifica l'esistenza di risultati precedenti per evitare ridondanze, sfruttando 
+il multithreading (60 thread), timeout di 1800 secondi e parametri di precisione configurati.
+"""
+
 import argparse
 import json
 import math

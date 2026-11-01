@@ -4,6 +4,12 @@ from collections import Counter
 from pathlib import Path
 from heuristics import HEURISTICS
 
+"""
+Modulo di utilità generale per la pipeline di verifica formale e testing mutazionale di smart contract Solidity. 
+Fornisce funzioni per la manipolazione e pulizia di file Boogie/SMT, l'esecuzione di comandi di sistema, 
+l'interazione con i tool Z3, VeriSol e Aletheia, la gestione dei file di mutazione e la pulizia dei setup di lavoro.
+"""
+
 DOCKER_IMAGE = "boogie-z3-image"
 
 def move_assert_after_assumptions(file_path, procedure):

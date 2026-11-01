@@ -37,6 +37,17 @@ Examples:
 
 from __future__ import annotations
 
+"""
+Script per verificare l'uniformità della copertura o delle intersezioni degli intervalli 
+su un ampio dominio numerico (es. [0, 2^bits)).
+Analizza un file CSV estraendo le strutture di intervallo per riga e variabile, 
+suddivide il dominio in bin di eguale ampiezza e applica il test statistico del 
+Chi-Quadrato per confrontare i valori osservati con quelli attesi sotto l'ipotesi 
+di una distribuzione uniforme.
+I risultati statistici (p-value, gradi di libertà, chi-quadrato) vengono stampati 
+a terminale ed eventualmente esportati in un file CSV di riepilogo.
+"""
+
 import argparse
 import ast
 import csv

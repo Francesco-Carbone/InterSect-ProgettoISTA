@@ -3,6 +3,14 @@
 
 from __future__ import annotations
 
+"""
+Punto di ingresso da riga di comando per il campionatore guidato da intervalli InterSect.
+Configura e valida i parametri essenziali (file SMT-LIB, theta, coverage, dimensione 
+dell'universo U, timeout, delta e variabili libere) ed esegue il campionamento 
+tramite la funzione intervalGuidedSampler.
+Quando viene eseguito senza i comandi richiesti crasha
+"""
+
 import argparse
 import sys
 from pathlib import Path

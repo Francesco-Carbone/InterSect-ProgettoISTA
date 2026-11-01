@@ -9,6 +9,14 @@ so the result is deterministic, stratified, and easy to inspect.
 
 from __future__ import annotations
 
+"""
+Script per creare un sottoinsieme bilanciato di 80 file dai benchmark dillig.
+Filtra i file in base a prefissi specifici (10-, 15-, 20-, 25-, 30-) e ne seleziona 
+i primi 16 per ciascun gruppo in ordine numerico deterministico.
+Infine, pulisce la directory di destinazione e vi copia i file selezionati.
+Da chiedere dove è la cartella dillig
+"""
+
 import argparse
 import shutil
 from pathlib import Path

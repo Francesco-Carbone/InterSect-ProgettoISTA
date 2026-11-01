@@ -1,6 +1,13 @@
 from solver_utils import create_mask_with_coverage, create_string_mask_with_coverage
 import scipy.stats
 
+"""
+Script di test e validazione per la generazione di maschere di copertura su domini interi e stringhe. 
+Include la logica di indicizzazione lessicografica delle stringhe (a-z) 
+e verifica statisticamente l'uniformità dei campioni generati per le stringhe 
+tramite il test di Kolmogorov-Smirnov (KS-test).
+"""
+
 TOTAL_STRINGS = sum(26**k for k in range(1, 55))
 def string_to_index(s: str) -> int:
     """

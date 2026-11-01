@@ -10,6 +10,16 @@ from solver_utils import extract_free_vars_from_smt2_file, partitionVariable, ge
 from z3 import *
 from tqdm import tqdm
 
+"""
+Script di orchestrazione principale per la pipeline di verifica formale e analisi di mutazione.
+Automatizza l'intero flusso di validazione dei contratti intelligenti Solidity:
+  1. Estrazione degli invarianti e generazione dei mutanti tramite euristiche dedicate.
+  2. Traduzione del codice Solidity in file Boogie (.bpl) tramite l'esecuzione di VeriSol.
+  3. Generazione delle condizioni di verifica in formato SMT-LIB (.smt2) eseguendo Boogie tramite Docker.
+  4. Validazione logica finale mediante il solver Z3 e registrazione dei risultati in un report CSV (output.csv).
+Da aggiungere il pacchetto rich a requirements.txt, in generale sembra scollegato dal resto del progetto
+"""
+
 # Percorsi principali
 BASE_DIR = Path("/Users/gerardo/Desktop/Formal_Verification_UNISA_UCL")
 INPUT_DIR = BASE_DIR / "Aletheia" / "input"

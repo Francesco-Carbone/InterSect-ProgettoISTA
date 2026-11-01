@@ -14,6 +14,16 @@ distribution, so experiment grids can be extended by adding CLI values.
 
 from __future__ import annotations
 
+"""
+Script per la generazione automatica di formule SMT-LIB (logica QF_LIA) 
+il cui spazio delle soluzioni è un'unione di intervalli interi su un 
+universo finito (es. [0, 2^256 - 1]).
+Permette di configurare la larghezza degli intervalli, il numero di regioni 
+e la distribuzione spaziale (uniforme o non uniforme con cluster concentrati).
+Per ciascuna combinazione, produce un file SMT-LIB (.smt2) per i solver 
+e un file di metadati descrittivi in formato JSON.
+"""
+
 import argparse
 import json
 import random

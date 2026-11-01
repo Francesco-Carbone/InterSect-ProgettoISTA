@@ -3,6 +3,15 @@ import csv
 from collections import defaultdict
 from pathlib import Path
 
+"""
+Script di aggregazione per i dati di verifica formale (uniformità degli interi).
+Legge un file CSV di dettaglio (es. integer_uniformity_summary.csv), 
+raggruppa i dati in base al livello di copertura (Coverage) e calcola 
+i totali e le medie ponderate per metriche chiave (modelli, variabili, test statistici 
+Reject/Fail to Reject H0 e tempi di esecuzione). 
+Il risultato viene salvato in un nuovo CSV riassuntivo complessivo 
+(integer_uniformity_overall_by_coverage.csv).
+"""
 
 DEFAULT_INPUT = Path(
     "/Users/gerardo/Desktop/Formal_Verification_UNISA_UCL/results_rq/rq_2/csv/integer_uniformity_summary.csv"

@@ -3,6 +3,16 @@ from solver_utils import create_mask, sample_intervals
 import csv, scipy.stats
 from tqdm import tqdm
 
+"""
+Script per l'analisi sperimentale dell'uniformità di stringhe campionate 
+da maschere di intervalli su un ampio dominio numerico (2^256).
+Converte stringhe alfabetiche in indici normalizzati e itera su differenti 
+numeri di intervalli (da 1 a 999) con ampiezza fissa. 
+Per ciascuna iterazione, genera la maschera, campiona le stringhe, ne verifica 
+l'uniformità tramite il test di Kolmogorov-Smirnov (scipy.stats.kstest) e 
+salva le metriche statistiche e di copertura risultanti in un file CSV.
+"""
+
 TOTAL_STRINGS = sum(26**k for k in range(1, 55))
 def string_to_index(s: str) -> int:
     """

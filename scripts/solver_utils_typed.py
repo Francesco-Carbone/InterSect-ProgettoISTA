@@ -8,6 +8,15 @@ import uuid
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
+"""
+Modulo di utilità e campionamento tipizzato per la verifica formale SMT (Z3). 
+Estende le capacità di esplorazione dello spazio degli stati supportando tipi di dati 
+espliciti (Int, String, Bool, BitVector). Gestisce la generazione e l'applicazione 
+di maschere di copertura (anche per stringhe tramite codifica in base-26), l'esecuzione 
+parallela o sequenziale dei solver con timeout e interruzione sicura, test di arresto 
+bayesiano e il salvataggio strutturato dei risultati su file CSV.
+"""
+
 try:
     from tqdm.auto import tqdm
 except ImportError:

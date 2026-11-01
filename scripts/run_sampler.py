@@ -1,5 +1,11 @@
 from solver_utils_typed import intervalGuidedSampler
 
+"""
+Script di esecuzione puntuale e isolata per il campionatore guidato da intervalli (intervalGuidedSampler). 
+Esegue l'analisi su un singolo file di benchmark SMT-LIB predefinito configurando parametri 
+avanzati come theta=256, copertura al 50%, delta, limite superiore del dominio, timeout 
+di 1800 secondi e l'impiego di 60 thread paralleli.
+"""
 
 def main():
     # file_path = "benchmarks/ranked_linear_independence/rank_13/rank_13_instance_000.smt2"

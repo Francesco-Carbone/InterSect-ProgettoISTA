@@ -19,6 +19,21 @@ Row numbers are 1-based with respect to the CSV data rows (header excluded).
 
 from __future__ import annotations
 
+"""
+Script per l'analisi dei file CSV relativi agli slack di interi (es. slacks_results_cov90/*.csv).
+Esamina la colonna `mask_var_pairs` per verificare se la distribuzione di ciascuna maschera 
+di variabili è uniforme, confrontandola con un campione ideale tramite test statistici 
+(Mann-Whitney U o Kolmogorov-Smirnov) conformi alle euristiche del solver.
+
+Per ogni file analizzato, il script individua e registra:
+  - La prima riga in cui almeno una maschera di variabile perde l'uniformità.
+  - La prima riga in cui tutte le maschere perdono l'uniformità.
+  - L'elenco completo dei numeri di riga che soddisfano tali condizioni.
+
+I risultati aggregati di tutti i file vengono infine esportati in un report CSV riassuntivo.
+"""
+
+
 import ast
 import csv
 from collections import Counter

@@ -3,6 +3,14 @@ import os, shutil, z3
 from z3.z3util import get_vars
 from solver_utils_typed import hybrid_state_space_sampler_typed
 
+"""
+Script di esplorazione ed esecuzione batch per l'analisi dello spazio degli stati.
+Scansiona una cartella di benchmark SMT-LIB (.smt2), saltando i file già elaborati, 
+e applica il campionatore ibrido tipizzato (hybrid_state_space_sampler_typed) su 
+ciascun file utilizzando parametri configurabili di soglia (theta), copertura 
+target e lunghezza massima delle stringhe.
+"""
+
 def run_algorithm_on_benchmark(benchmark_path, theta, coverage, string_max_length=128):
     results_dir = "benchmarks/automatark-lu-100-SAT_results_cov"+str(coverage)+"_strlen"+str(string_max_length)
     # results_dir = "benchmarks/slacks_results_cov"+str(coverage)

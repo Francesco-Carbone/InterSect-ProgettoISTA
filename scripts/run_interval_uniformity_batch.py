@@ -18,6 +18,14 @@ Example:
 
 from __future__ import annotations
 
+"""
+Script di orchestrazione ed esecuzione batch per l'analisi e il test di uniformità 
+degli intervalli su una struttura di directory contenente file CSV. 
+Scansiona ricorsivamente i file, carica dinamicamente le funzioni di supporto statistiche, 
+elabora i dati di copertura/intervallo applicando il test del Chi-quadrato e 
+consolida tutti i risultati all'interno di un file CSV riassuntivo globale.
+"""
+
 import argparse
 import csv
 import importlib.util

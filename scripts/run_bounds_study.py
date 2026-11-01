@@ -3,6 +3,15 @@
 
 from __future__ import annotations
 
+"""
+Script di orchestrazione ed esecuzione batch per lo studio dei limiti (bound-size study).
+Scansiona ricorsivamente una cartella di benchmark SMT-LIB (.smt2) e itera su differenti 
+livelli di copertura target configurabili. 
+Verifica l'esistenza di risultati precedenti per evitare ridondanze (salvo forzatura) 
+ed esegue il campionatore guidato da intervalli (intervalGuidedSampler) su ciascun file 
+sfruttando elaborazioni multithreading, timeout e parametri personalizzabili.
+"""
+
 import argparse
 from pathlib import Path
 

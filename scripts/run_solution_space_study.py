@@ -3,6 +3,14 @@
 
 from __future__ import annotations
 
+"""
+Script di orchestrazione ed esecuzione batch per lo studio dello spazio delle soluzioni intere. 
+Scansiona i file SMT-LIB contenuti nella directory dei benchmark e applica lo strumento InterSect 
+(intervalGuidedSampler) iterando su differenti percentuali di copertura target. 
+Gestisce il controllo dei risultati esistenti, il multithreading, i timeout, i parametri dell'universo 
+e offre opzioni di esecuzione flessibili come il filtraggio forzato e la modalità dry-run.
+"""
+
 import argparse
 from pathlib import Path
 

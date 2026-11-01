@@ -6,6 +6,12 @@
 # Uso: ./switch-solc-verisol.sh 0.6.12
 # -------------------------------
 
+# Script di utilità per il cambio e il download automatico delle versioni del compilatore
+# Solidity (solc) per l'ambiente di verifica formale VeriSol[cite: 13, 14].
+# Rileva l'architettura di sistema macOS (ARM64 o AMD64), scarica il binario ufficiale
+# corrispondente direttamente dalle release di GitHub se non già presente, e aggiorna
+# il link simbolico associato a VeriSol verificandone la corretta esecuzione[cite: 14].
+
 if [ $# -ne 1 ]; then
     echo "Use: $0 <versione-solc>"
     echo "Example: $0 0.6.12"

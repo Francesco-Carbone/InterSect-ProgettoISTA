@@ -3,6 +3,14 @@ from solver_utils import create_mask
 import csv
 from tqdm import tqdm
 
+"""
+Script per l'analisi e la generazione di dati sperimentali di uniformità delle maschere. 
+Calcola un dominio numerico in base alla dimensione in bit e itera sistematicamente 
+su diverse combinazioni di numero di intervalli e frazioni di ampiezza. 
+Per ogni configurazione, esegue ripetutamente test statistici tramite la funzione 
+create_mask per raccogliere metriche di copertura e p-value (inclusi i test di 
+Kolmogorov-Smirnov), salvando infine l'intero dataset strutturato in un file CSV.
+"""
 def generate_mask_for_domain(int_type):
     
     domain = 2**int_type

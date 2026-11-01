@@ -3,6 +3,15 @@
 
 from __future__ import annotations
 
+"""
+Script di orchestrazione ed esecuzione per i casi studio. 
+Carica la mappatura delle variabili libere da un file CSV di configurazione e 
+scansiona i file SMT-LIB di test. 
+Per ciascun file, verifica l'esistenza di risultati precedenti ed esegue in parallelo 
+il campionatore guidato da intervalli (intervalGuidedSampler) e una baseline 
+basata su Z3 (z3_baseline_sampler) gestendo l'isolamento dei processi e i timeout.
+"""
+
 import csv
 from pathlib import Path
 import multiprocessing

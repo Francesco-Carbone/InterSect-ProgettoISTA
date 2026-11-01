@@ -7,6 +7,13 @@ from bisect import bisect_right
 from z3.z3util import get_vars
 from tqdm.auto import tqdm
 
+"""
+Libreria di utilità e motore di campionamento ibrido per la verifica formale basata su SMT (Z3). 
+Fornisce funzioni per il partizionamento e l'esplorazione dello spazio degli stati, 
+la generazione e la gestione di maschere di copertura per domini interi e stringhe, 
+l'esecuzione di query e l'estrazione di modelli tramite Z3, nonché l'applicazione 
+di test statistici per la verifica dell'uniformità dei campioni.
+"""
 
 def hybrid_state_space_sampler(free_vars, smt_filepath, theta, coverage):
 ##################  hybrid state-space sampler  ##################

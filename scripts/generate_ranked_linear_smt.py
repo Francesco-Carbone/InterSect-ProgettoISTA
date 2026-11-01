@@ -11,6 +11,15 @@ The construction is satisfiable by design:
 
 from __future__ import annotations
 
+"""
+Script per la generazione di formule SMT-LIB QF_LIA basate su sistemi lineari 
+interi A * x = b, utilizzando matrici quadrate n x n a rango esatto r.
+L'istanza è garantita essere soddisfacibile per costruzione tramite il campionamento 
+di un'assegnazione witness e il calcolo dei termini noti b = A * x*.
+Supporta la generazione flessibile (singolo rango, tutti i ranghi o sweep dei bound) 
+ed esporta sia i file SMT (.smt2) che i relativi metadati JSON (.json).
+"""
+
 import argparse
 import ast
 import json

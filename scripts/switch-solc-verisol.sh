@@ -6,6 +6,13 @@
 # Uso: ./switch-solc-verisol.sh 0.6.12
 # -------------------------------
 
+
+# Script di utilità per il cambio rapido della versione del compilatore Solidity (solc)
+# dedicato all'ambiente di verifica formale VeriSol.
+# Sfrutta solc-select per attivare la versione desiderata e aggiorna automaticamente
+# il link simbolico nell'eseguibile di VeriSol, verificandone la corretta configurazione.
+# versione datata.
+
 # Controllo argomento
 if [ $# -ne 1 ]; then
     echo "Use: $0 <versione-solc>"

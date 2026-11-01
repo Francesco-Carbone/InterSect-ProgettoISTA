@@ -1,6 +1,14 @@
 import os
 from solver_utils_typed import intervalGuidedSampler
 
+"""
+Script di orchestrazione ed esecuzione batch per benchmark di stringhe basati su SMT-LIB. 
+Scansiona una cartella di file .smt2 e applica il campionatore guidato da intervalli 
+(intervalGuidedSampler) iterando su differenti percentuali di copertura target (10%, 30%, 50%, 70%, 90%). 
+Verifica l'esistenza di risultati precedenti per evitare ridondanze, sfruttando 
+il multithreading (60 thread), timeout di 1800 secondi e parametri di precisione configurati.
+"""
+
 def run_algorithm_on_benchmark(benchmark_path, theta, coverage):
     results_dir = "benchmarks/automatark-lu-80_results_interval_guided_sampler_cov"+str(coverage)
 

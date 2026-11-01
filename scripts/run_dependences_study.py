@@ -3,6 +3,15 @@
 
 from __future__ import annotations
 
+"""
+Script di orchestrazione ed esecuzione batch per lo studio delle dipendenze e dei ranghi lineari (dependence study). 
+Scansiona ricorsivamente una cartella dedicata di file SMT-LIB (.smt2) e itera su differenti 
+percentuali di copertura target configurabili. 
+Verifica l'esistenza di risultati precedenti per evitare ricalcoli superflui (salvo forzatura con --force) 
+ed esegue il campionatore guidato da intervalli (intervalGuidedSampler) sfruttando il multithreading, 
+gestione dei timeout e parametri personalizzabili.
+"""
+
 import argparse
 from pathlib import Path
 
