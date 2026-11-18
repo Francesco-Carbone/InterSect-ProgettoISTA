@@ -1,0 +1,6 @@
+run,file,exit_code,timed_out,wall_s
+1,benchmarks/slacks-80/10-12.slack.smt2,0,False,1618.95
+1,benchmarks/slacks-80/10-13.slack.smt2,0,False,1814.27
+1,benchmarks/slacks-80/10-20.slack.smt2,0,False,1779.63
+1,benchmarks/slacks-80/10-21.slack.smt2,0,False,1773.1
+1,benchmarks/slacks-80/10-28.slack.smt2,0,False,1846.32
