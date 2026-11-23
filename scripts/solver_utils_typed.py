@@ -26,17 +26,23 @@ except ImportError:
 import pandas as pd
 from scipy.stats import beta, ks_2samp, mannwhitneyu
 
+from smt_utils import (
+    BITVEC_RE,
+    _format_literal,
+    _normalize_mask_intervals,
+    _normalize_model_value,
+    _unescape_smt_string,
+    expand_multiset,
+    extract_free_vars_with_type_from_smt2_file,
+    multiset_from_intervals_2,
+    uniform_multiset,
+)
 from solver_utils import (
     create_mask_with_coverage,
-    create_string_mask_with_coverage,
-    expand_multiset,
-    multiset_from_intervals_2,
     run_z3_and_get_model,
-    uniform_multiset,
 )
 
 
-BITVEC_RE = re.compile(r"^\(_\s+BitVec\s+(\d+)\)$")
 STRING_MASK_START_TEMPLATE = ";; STRING_INTERVAL_MASK_START {var_name}"
 STRING_MASK_END_TEMPLATE = ";; STRING_INTERVAL_MASK_END {var_name}"
 STRING_TO_INDEX_HELPERS_START = ";; STRING_TO_INDEX_HELPERS_START"
@@ -305,260 +311,6 @@ def hybrid_state_space_sampler_typed(
     )
 
 
-def hybrid_state_space_sampler_hsss_typed(
-    smt_filepath,
-    free_vars=None,
-    theta=256,
-    coverage=50,
-    delta=0.0050,
-    use_recursive_string_helpers=True,
-    string_max_length=54,
-    removal_mode=REMOVAL_MODE_ONE,
-    chunk_size=None,
-    timeout=None,
-    output_filename=None,
-    results_suffix="_hsss",
-):
-    """
-    HSSS typed variant.
-
-    When the solver returns UNSAT or UNKNOWN while masks are active, the algorithm
-    complements the current masks, removes one interval from each complemented mask
-    using a minimal-distortion heuristic, and continues the exploration.
-    """
-    return _hybrid_state_space_sampler_typed_impl(
-        smt_filepath,
-        free_vars=free_vars,
-        theta=theta,
-        coverage=coverage,
-        delta=delta,
-        use_recursive_string_helpers=use_recursive_string_helpers,
-        string_max_length=string_max_length,
-        complement_on_unsat=True,
-        results_suffix=results_suffix,
-        removal_mode=removal_mode,
-        chunk_size=chunk_size,
-        timeout=timeout,
-        output_filename=output_filename,
-    )
-
-
-def sampler_typed_always_new_mask(
-    smt_filepath,
-    free_vars=None,
-    theta=256,
-    coverage=50,
-    delta=0.0050,
-    use_recursive_string_helpers=True,
-    string_max_length=54,
-    timeout=None,
-    output_filename=None,
-    results_suffix="_always_new_mask",
-):
-    """
-    Typed sampler that always restarts from a fresh mask set after each save.
-
-    Behaviour:
-    - generate masks, run the solver
-    - if SAT: save result, then restart from the original SMT and build new masks
-    - if UNSAT/UNKNOWN: complement the current masks without removing intervals,
-      rerun the solver, save that outcome, then restart from the original SMT
-      and build new masks
-    """
-    timeout_seconds = _validate_timeout(timeout)
-    string_domain = _get_string_domain_config(string_max_length)
-
-    S = set()
-    E = set()
-    L = set()
-    solver_result = {}
-    blocked_models = []
-
-    if free_vars is None:
-        free_vars = extract_free_vars_with_type_from_smt2_file(smt_filepath)
-    print(f"Extracted free variables: {free_vars}")
-
-    tmp_dir = Path(__file__).parent.parent / "tmp"
-    tmp_dir.mkdir(parents=True, exist_ok=True)
-    tmp_filepath = tmp_dir / f"tmp_{uuid.uuid4().hex}.smt2"
-    shutil.copy2(smt_filepath, tmp_filepath)
-
-    interrupted = False
-
-    try:
-        start_time = time.perf_counter()
-        deadline = None if timeout_seconds is None else start_time + timeout_seconds
-
-        for free_var_name, free_var_type in free_vars:
-            if _timeout_expired(deadline):
-                print(f"[INFO] Timeout reached after {timeout_seconds} seconds, saving CSV and stopping.")
-                return S
-            partition_variable_typed(
-                E,
-                L,
-                smt_filepath,
-                free_var_name,
-                free_var_type,
-                theta=theta,
-                string_domain=string_domain,
-            )
-
-        assignment_iter = [None]
-        if E:
-            assignment_iter = get_assignment_for_typed_E(E, limit=theta)
-
-        for assignment in assignment_iter:
-            while True:
-                if _timeout_expired(deadline):
-                    print(f"[INFO] Timeout reached after {timeout_seconds} seconds, saving CSV and stopping.")
-                    return S
-
-                _reset_typed_tmp_formula(smt_filepath, tmp_filepath, assignment)
-                for blocked_model in blocked_models:
-                    prevent_same_model_typed(blocked_model, L, tmp_filepath)
-                mask_var_pairs = _generate_and_apply_typed_masks(
-                    L,
-                    tmp_filepath,
-                    coverage,
-                    delta,
-                    use_recursive_string_helpers,
-                    string_domain,
-                )
-
-                if not mask_var_pairs:
-                    status, model = run_z3_and_get_model(tmp_filepath)
-                    if _timeout_expired(deadline):
-                        print(f"[INFO] Timeout reached after {timeout_seconds} seconds, saving CSV and stopping.")
-                        return S
-                    partial_time = time.perf_counter() - start_time
-                    start_time = time.perf_counter()
-                    if status in ("UNSAT", "UNKNOWN"):
-                        save_model_typed(
-                            solver_result,
-                            model,
-                            free_vars,
-                            tmp_filepath,
-                            status,
-                            assignment,
-                            [],
-                            partial_time,
-                            L,
-                        )
-                    elif status == "SAT":
-                        save_sat_model_typed(
-                            solver_result,
-                            model,
-                            free_vars,
-                            tmp_filepath,
-                            status,
-                            [],
-                            partial_time,
-                            L,
-                        )
-                        S.add(frozenset(model.items()))
-                    break
-
-                status, model = run_z3_and_get_model(tmp_filepath)
-                if _timeout_expired(deadline):
-                    print(f"[INFO] Timeout reached after {timeout_seconds} seconds, saving CSV and stopping.")
-                    return S
-                partial_time = time.perf_counter() - start_time
-                start_time = time.perf_counter()
-
-                if status == "SAT":
-                    save_sat_model_typed(
-                        solver_result,
-                        model,
-                        free_vars,
-                        tmp_filepath,
-                        status,
-                        mask_var_pairs,
-                        partial_time,
-                        L,
-                    )
-                    blocked_models.append(dict(model.items()))
-                    prevent_same_model_typed(model, L, tmp_filepath)
-                    S.add(frozenset(model.items()))
-                    continue
-
-                if status in ("UNSAT", "UNKNOWN"):
-                    complemented_masks = complement_mask_var_pairs_typed(mask_var_pairs, L)
-                    _reset_typed_tmp_formula(smt_filepath, tmp_filepath, assignment)
-                    for blocked_model in blocked_models:
-                        prevent_same_model_typed(blocked_model, L, tmp_filepath)
-                    apply_mask_var_pairs_typed(
-                        complemented_masks,
-                        L,
-                        tmp_filepath,
-                        use_recursive_string_helpers=use_recursive_string_helpers,
-                        string_domain=string_domain,
-                    )
-
-                    status, model = run_z3_and_get_model(tmp_filepath)
-                    if _timeout_expired(deadline):
-                        print(f"[INFO] Timeout reached after {timeout_seconds} seconds, saving CSV and stopping.")
-                        return S
-                    partial_time = time.perf_counter() - start_time
-                    start_time = time.perf_counter()
-
-                    if status in ("UNSAT", "UNKNOWN"):
-                        save_model_typed(
-                            solver_result,
-                            model,
-                            free_vars,
-                            tmp_filepath,
-                            status,
-                            assignment,
-                            complemented_masks,
-                            partial_time,
-                            L,
-                        )
-                    elif status == "SAT":
-                        save_sat_model_typed(
-                            solver_result,
-                            model,
-                            free_vars,
-                            tmp_filepath,
-                            status,
-                            complemented_masks,
-                            partial_time,
-                            L,
-                        )
-                        blocked_models.append(dict(model.items()))
-                        prevent_same_model_typed(model, L, tmp_filepath)
-                        S.add(frozenset(model.items()))
-                    continue
-
-        if not E and not L:
-            if _timeout_expired(deadline):
-                print(f"[INFO] Timeout reached after {timeout_seconds} seconds, saving CSV and stopping.")
-                return S
-            status, model = run_z3_and_get_model(tmp_filepath)
-            partial_time = time.perf_counter() - start_time
-            if status in ("UNSAT", "UNKNOWN"):
-                save_model_typed(solver_result, model, free_vars, tmp_filepath, status, None, [], partial_time, L)
-            elif status == "SAT":
-                save_sat_model_typed(solver_result, model, free_vars, tmp_filepath, status, [], partial_time, L)
-                S.add(frozenset(model.items()))
-    except KeyboardInterrupt:
-        interrupted = True
-        print("\nKeyboardInterrupt ricevuto: salvataggio dei risultati parziali in corso...")
-    finally:
-        _write_solver_results_typed(
-            solver_result,
-            smt_filepath,
-            coverage,
-            string_domain["max_len"],
-            results_suffix=results_suffix,
-            output_filename=output_filename,
-        )
-
-    if interrupted:
-        raise KeyboardInterrupt
-
-    return S
-
-
 def intervalGuidedSampler(
     smt_filepath,
     free_vars=None,
@@ -583,8 +335,7 @@ def intervalGuidedSampler(
     - if SAT: save result, then restart from the original SMT and build new masks
     - if UNSAT/UNKNOWN: save result, then restart from the original SMT and build new masks
 
-    Unlike sampler_typed_always_new_mask, this variant never applies any
-    complement strategy.
+    This variant never applies any complement strategy.
     """
     timeout_seconds = _validate_timeout(timeout)
     string_domain = _get_string_domain_config(MAX_STRING_MAX_LENGTH, string_order=string_order)
@@ -943,33 +694,6 @@ def _reset_typed_tmp_formula(smt_filepath, tmp_filepath, assignment=None):
     shutil.copy2(smt_filepath, tmp_filepath)
     if assignment is not None:
         add_e_assignment_typed(assignment, tmp_filepath)
-
-
-def _generate_and_apply_typed_masks(
-    L,
-    tmp_filepath,
-    coverage,
-    delta,
-    use_recursive_string_helpers,
-    string_domain,
-):
-    mask_var_pairs = []
-    for (var_name, var_type, lb, ub) in tqdm(L, desc="Generating masks..."):
-        if not _is_mask_supported(var_type):
-            continue
-
-        mask = _create_mask_for_type(var_type, lb, ub, coverage, delta, string_domain=string_domain)
-        mask_var_pairs.append((var_name, mask))
-        add_mask_typed(
-            mask,
-            var_name,
-            var_type,
-            tmp_filepath,
-            use_recursive_string_helpers=use_recursive_string_helpers,
-            string_domain=string_domain,
-        )
-
-    return mask_var_pairs
 
 
 def _build_typed_mask_entry(args):
@@ -1420,14 +1144,7 @@ def _write_solver_results_typed(
     if include_string_length_suffix:
         results_dir_name += "_strlen" + str(string_max_length)
     results_dir = benchmark_dir.parent / results_dir_name
-    results_dir.mkdir(parents=True, exist_ok=True)
-    if output_filename is None:
-        csv_filename = Path(smt_filepath).stem + ".csv"
-    else:
-        csv_filename = Path(output_filename)
-        if csv_filename.suffix.lower() != ".csv":
-            csv_filename = csv_filename.with_suffix(".csv")
-    df.to_csv(results_dir / csv_filename, index=False)
+    _save_results_csv(df, results_dir, smt_filepath, output_filename)
 
 
 def _write_baseline_solver_results_typed(
@@ -1437,8 +1154,17 @@ def _write_baseline_solver_results_typed(
     output_filename=None,
 ):
     df = pd.DataFrame(solver_result)
+    results_dir = _baseline_results_dir(smt_filepath, results_suffix)
+    _save_results_csv(df, results_dir, smt_filepath, output_filename)
+
+
+def _baseline_results_dir(smt_filepath, results_suffix=""):
     benchmark_dir = Path(smt_filepath).parent
-    results_dir = benchmark_dir.parent / (benchmark_dir.name + "_results" + results_suffix)
+    return benchmark_dir.parent / (benchmark_dir.name + "_results" + results_suffix)
+
+
+def _save_results_csv(df, results_dir, smt_filepath, output_filename=None):
+    """Crea results_dir e vi scrive il CSV (nome ricavato dal file SMT o da output_filename)."""
     results_dir.mkdir(parents=True, exist_ok=True)
     if output_filename is None:
         csv_filename = Path(smt_filepath).stem + ".csv"
@@ -1450,8 +1176,7 @@ def _write_baseline_solver_results_typed(
 
 
 def _baseline_result_csv_path(smt_filepath, results_suffix=""):
-    benchmark_dir = Path(smt_filepath).parent
-    results_dir = benchmark_dir.parent / (benchmark_dir.name + "_results" + results_suffix)
+    results_dir = _baseline_results_dir(smt_filepath, results_suffix)
     return results_dir / Path(smt_filepath).with_suffix(".csv").name
 
 
@@ -1485,24 +1210,6 @@ def _count_existing_sat_rows(csv_filepath):
     except (OSError, csv.Error):
         return 0
 
-
-def extract_free_vars_with_type_from_smt2_file(file_path):
-    free_vars = []
-    with open(file_path, "r") as f:
-        for line in f:
-            # Match zero-arg declare-fun: (declare-fun <name> () <type>)
-            m_fun = re.match(r"\(declare-fun\s+(\w+)\s+\(\s*\)\s+(.+)\)", line)
-            # Match declare-const: (declare-const <name> <type>)
-            m_const = re.match(r"\(declare-const\s+(\w+)\s+(.+)\)", line)
-            if m_fun:
-                name = m_fun.group(1)
-                var_type = m_fun.group(2).strip()
-                free_vars.append((name, var_type))
-            elif m_const:
-                name = m_const.group(1)
-                var_type = m_const.group(2).strip()
-                free_vars.append((name, var_type))
-    return free_vars
 
 def _mask_bounds_from_pairs(mask_var_pairs, L):
     if not mask_var_pairs:
@@ -1647,18 +1354,7 @@ def add_e_assignment_typed(assignment, file_path):
         for var_name, data in assignment.items()
     ]
     assignment_assert = "(assert (and\n    " + "\n    ".join(clauses) + "\n))\n"
-
-    lines = content.splitlines(keepends=True)
-    first_checksat_index = next(
-        (i for i, line in enumerate(lines) if line.strip().startswith("(check-sat")),
-        None,
-    )
-
-    if first_checksat_index is None:
-        content += assignment_assert
-    else:
-        lines.insert(first_checksat_index, assignment_assert)
-        content = "".join(lines)
+    content = _insert_before_first_checksat(content, assignment_assert)
 
     with open(file_path, "w") as f:
         f.write(content)
@@ -1734,21 +1430,6 @@ def _extract_bitvec_bounds(file_path, free_var_name, bitwidth):
                 ub = min(ub, value)
 
     return lb, ub
-
-
-def _format_literal(value, var_type):
-    if var_type == "Bool":
-        return "true" if value else "false"
-
-    bitvec_match = BITVEC_RE.match(var_type)
-    if bitvec_match:
-        return f"(_ bv{int(value)} {int(bitvec_match.group(1))})"
-
-    if var_type == "String":
-        escaped = str(value).replace("\\", "\\\\").replace('"', '\\"')
-        return f'"{escaped}"'
-
-    return str(value)
 
 
 def _is_mask_supported(var_type):
@@ -1923,30 +1604,6 @@ def _add_string_mask(mask, free_var_name, file_path, use_recursive_string_helper
         "))\n"
         f"{end_marker}\n"
     )
-    content = _insert_before_first_checksat(content, new_assert)
-
-    with open(file_path, "w") as f:
-        f.write(content)
-
-
-def _add_legacy_string_mask(mask, free_var_name, file_path):
-    with open(file_path, "r") as f:
-        content = f.read()
-
-    interval_blocks = []
-    for group in mask:
-        if not group:
-            continue
-        new_clauses = "\n    ".join(
-            f'(= {free_var_name} "{_escape_smt_string(value)}")'
-            for value in group
-        )
-        interval_blocks.append(f"(or\n    {new_clauses}\n  )")
-
-    if not interval_blocks:
-        return
-
-    new_assert = "(assert (or\n  " + "\n  ".join(interval_blocks) + "\n))\n"
     content = _insert_before_first_checksat(content, new_assert)
 
     with open(file_path, "w") as f:
@@ -2176,53 +1833,6 @@ def build_complement_mask_variants_typed(mask_var_pairs, L, removal_mode=REMOVAL
     return variants
 
 
-def build_add_mask_variants_typed(
-    original_mask_var_pairs,
-    complemented_mask_var_pairs,
-    L,
-    addition_mode=REMOVAL_MODE_ONE,
-    chunk_size=None,
-):
-    if not original_mask_var_pairs or not complemented_mask_var_pairs:
-        return []
-
-    _validate_removal_mode(addition_mode)
-    bounds_by_var = {var_name: (var_type, lb, ub) for var_name, var_type, lb, ub in L}
-    complemented_by_var = {var_name: mask for var_name, mask in complemented_mask_var_pairs}
-    per_variable_variants = []
-
-    for var_name, original_mask in original_mask_var_pairs:
-        bounds = bounds_by_var.get(var_name)
-        if bounds is None:
-            return []
-        complemented_mask = complemented_by_var.get(var_name)
-        if complemented_mask is None:
-            return []
-
-        var_type, lb, ub = bounds
-        addition_variants = [
-            (var_name, expanded_mask)
-            for expanded_mask in _build_mask_addition_variants(
-                complemented_mask,
-                original_mask,
-                var_type,
-                lb,
-                ub,
-                addition_mode,
-                chunk_size,
-            )
-        ]
-        if not addition_variants:
-            return []
-        per_variable_variants.append(addition_variants)
-
-    variants = []
-    for variant_combo in itertools.product(*per_variable_variants):
-        variants.append([(var_name, list(mask)) for var_name, mask in variant_combo])
-
-    return variants
-
-
 def _validate_removal_mode(removal_mode):
     if removal_mode not in {REMOVAL_MODE_ONE, REMOVAL_MODE_CHUNK}:
         raise ValueError(
@@ -2266,42 +1876,6 @@ def _build_mask_removal_variants(mask, var_type, domain_lb, domain_ub, removal_m
     return variants
 
 
-def _build_mask_addition_variants(base_mask, addition_candidates, var_type, domain_lb, domain_ub, addition_mode, chunk_size=None):
-    if not base_mask or not addition_candidates:
-        return []
-
-    if addition_mode == REMOVAL_MODE_ONE:
-        candidates = [
-            _normalize_mask_intervals(base_mask + [interval], domain_lb, domain_ub)
-            for interval in addition_candidates
-        ]
-        return [
-            candidate
-            for candidate in candidates
-            if candidate and _mask_is_uniform_typed(candidate, var_type, domain_lb, domain_ub)
-        ]
-
-    add_count = _resolve_chunk_remove_count(len(addition_candidates), chunk_size)
-    variants = []
-    seen = set()
-    for _ in range(len(addition_candidates)):
-        addition_indices = _uniform_chunk_addition_indices(len(addition_candidates), add_count)
-        expanded_mask = _normalize_mask_intervals(
-            base_mask + [interval for index, interval in enumerate(addition_candidates) if index in addition_indices],
-            domain_lb,
-            domain_ub,
-        )
-        expanded_key = tuple(expanded_mask)
-        if (
-            expanded_mask
-            and expanded_key not in seen
-            and _mask_is_uniform_typed(expanded_mask, var_type, domain_lb, domain_ub)
-        ):
-            seen.add(expanded_key)
-            variants.append(expanded_mask)
-    return variants
-
-
 def _resolve_chunk_remove_count(mask_len, chunk_size):
     if mask_len <= 1:
         return 0
@@ -2321,15 +1895,6 @@ def _uniform_chunk_removal_indices(mask_len, remove_count):
         return set(range(mask_len))
     # Pick a random subset of distinct positions uniformly from the mask.
     return set(random.sample(range(mask_len), remove_count))
-
-
-def _uniform_chunk_addition_indices(mask_len, add_count):
-    if add_count <= 0:
-        return set()
-    if add_count >= mask_len:
-        return set(range(mask_len))
-    # Pick a random subset of distinct positions uniformly from the complement.
-    return set(random.sample(range(mask_len), add_count))
 
 
 def _mask_is_uniform_typed(mask, var_type, domain_lb, domain_ub):
@@ -2358,58 +1923,11 @@ def _mask_is_uniform_typed(mask, var_type, domain_lb, domain_ub):
     return ks_stat < 0.10 and p_value > 0.05
 
 
-def _normalize_mask_intervals(mask, domain_lb, domain_ub):
-    if not mask:
-        return []
-
-    clipped = []
-    for start, end in sorted(mask, key=lambda interval: interval[0]):
-        start = max(domain_lb, start)
-        end = min(domain_ub, end)
-        if start < end:
-            clipped.append((start, end))
-
-    if not clipped:
-        return []
-
-    merged = [clipped[0]]
-    for start, end in clipped[1:]:
-        last_start, last_end = merged[-1]
-        if start <= last_end:
-            merged[-1] = (last_start, max(last_end, end))
-        else:
-            merged.append((start, end))
-    return merged
-
-
-def prevent_same_model_typed(model, L, file_path):
+def _block_model_on_vars(model, type_by_var, file_path):
+    """Aggiunge al file SMT il vincolo che esclude il modello, limitato alle variabili di type_by_var."""
     with open(file_path, "r") as f:
         content = f.read()
 
-    l_info = {var_name: var_type for var_name, var_type, _, _ in L}
-    equalities = []
-    for var_name, z3_value in model.items():
-        if var_name not in l_info:
-            continue
-        var_type = l_info[var_name]
-        literal = _format_literal(_normalize_model_value(z3_value, var_type), var_type)
-        equalities.append(f"(= {var_name} {literal})")
-
-    if not equalities:
-        return
-
-    blocking_clause = f"(assert (not (and {' '.join(equalities)})))\n"
-    content = _insert_before_first_checksat(content, blocking_clause)
-
-    with open(file_path, "w") as f:
-        f.write(content)
-
-
-def prevent_same_model_for_free_vars_typed(model, free_vars, file_path):
-    with open(file_path, "r") as f:
-        content = f.read()
-
-    type_by_var = {var_name: var_type for var_name, var_type in free_vars}
     equalities = []
     for var_name, z3_value in model.items():
         var_type = type_by_var.get(var_name)
@@ -2428,15 +1946,14 @@ def prevent_same_model_for_free_vars_typed(model, free_vars, file_path):
         f.write(content)
 
 
-def _normalize_model_value(z3_value, var_type):
-    if var_type == "String":
-        value = str(z3_value)
-        if value.startswith('"') and value.endswith('"'):
-            return value[1:-1]
-        return value
-    if var_type == "Bool":
-        return str(z3_value).lower() == "true"
-    return int(str(z3_value))
+def prevent_same_model_typed(model, L, file_path):
+    type_by_var = {var_name: var_type for var_name, var_type, _, _ in L}
+    _block_model_on_vars(model, type_by_var, file_path)
+
+
+def prevent_same_model_for_free_vars_typed(model, free_vars, file_path):
+    type_by_var = {var_name: var_type for var_name, var_type in free_vars}
+    _block_model_on_vars(model, type_by_var, file_path)
 
 
 def _insert_before_first_checksat(content, insertion):
@@ -2513,14 +2030,6 @@ def _string_to_index(value, string_domain=None):
     for ch in value:
         offset = offset * 26 + (ord(ch) - ord("a"))
     return index + offset
-
-
-def _escape_smt_string(value):
-    return value.replace("\\", "\\\\").replace('"', '\\"')
-
-
-def _unescape_smt_string(value):
-    return bytes(value, "utf-8").decode("unicode_escape")
 
 
 def _free_var_names(free_vars):

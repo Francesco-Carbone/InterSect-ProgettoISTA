@@ -18,6 +18,10 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "system_tests"
+# --verify importa moduli da scripts/: servono la radice del progetto e la cartella scripts/ nel path
+for _p in (str(ROOT), str(ROOT / "scripts")):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 META = {"status", "mask_var_pairs", "mask_bounds", "time"}
 
 
@@ -40,8 +44,7 @@ def literal(value, typ):
 def verify_file(csv_path, df, bench_root, max_rows):
     """Ritorna (verificati, validi, nota)."""
     import z3
-    from scripts.solver_utils import _strip_smt2_commands_2
-    from scripts.solver_utils_typed import extract_free_vars_with_type_from_smt2_file
+    from scripts.smt_utils import _strip_smt2_commands_2, extract_free_vars_with_type_from_smt2_file
 
     smt = original_smt(csv_path, bench_root)
     if not smt.exists():

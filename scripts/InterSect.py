@@ -91,7 +91,8 @@ def main() -> int:
     args = build_arg_parser().parse_args()
 
     from solver_utils_typed import intervalGuidedSampler
-    from solver_utils import extract_free_vars_with_type_from_smt2_file, select_free_vars
+    from smt_utils import extract_free_vars_with_type_from_smt2_file
+    from solver_utils import select_free_vars
 
     if not args.file_path.exists():
         raise SystemExit(f"[ERROR] SMT file not found: {args.file_path}")

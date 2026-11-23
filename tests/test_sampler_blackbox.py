@@ -31,7 +31,7 @@ def test_tc01_default_su_f1(fixture_file, res_root):
 
 def test_tc02_free_vars_timeout_num_samples_output(fixture_file, res_root):
     smt = fixture_file("f2")
-    S = run(str(smt), free_vars=["u", "v"], timeout=600, num_samples=5,
+    S = run(str(smt), free_vars=[("u", "Int"), ("v", "Int")], timeout=600, num_samples=5,
             output_filename="out.csv", results_root=str(res_root))
     rows = read_rows(_csv(res_root, smt, "out.csv"))
     assert count_status(rows, "SAT") == 5
