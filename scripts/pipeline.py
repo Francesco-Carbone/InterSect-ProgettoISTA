@@ -6,7 +6,7 @@ from pathlib import Path
 from utils import extract_invariants,clean_setup, run_mutations_by_heuristic, run_z3, mutation_chain
 from utils import remove_useless_line, rename_file_and_clean, remove_unused_axioms, copy_mutants_to_input 
 from utils import copy_input_to_Aletheia, move_assert_after_assumptions, prepare_setup_for_mutations, copy_suitable_to_input
-from solver_utils import extract_free_vars_from_smt2_file, partitionVariable, get_assignment_for_E, add_e_assignment, create_mask_with_coverage, add_band, run_z3_and_get_model, remove_used_band, prevent_same_model, hybrid_state_space_sampler
+from solver_utils import partitionVariable, get_assignment_for_E, add_e_assignment, create_mask_with_coverage, add_band, run_z3_and_get_model, remove_used_band, prevent_same_model, hybrid_state_space_sampler
 from z3 import *
 from tqdm import tqdm
 

@@ -1,4 +1,5 @@
-from solver_utils import hybrid_state_space_sampler, extract_free_vars, run_z3_and_get_model, extract_free_vars_from_smt2_file, extract_free_vars_2, extract_free_vars_with_type_from_smt2_file
+from solver_utils import hybrid_state_space_sampler, run_z3_and_get_model
+from smt_utils import extract_free_vars_with_type_from_smt2_file
 import os, shutil, z3
 from z3.z3util import get_vars
 from solver_utils_typed import hybrid_state_space_sampler_typed

@@ -16,7 +16,8 @@ import csv
 from pathlib import Path
 import multiprocessing
 import logging
-from solver_utils import extract_free_vars_with_type_from_smt2_file, select_free_vars
+from smt_utils import extract_free_vars_with_type_from_smt2_file
+from solver_utils import select_free_vars
 from solver_utils_typed import intervalGuidedSampler, z3_baseline_sampler
 
 
